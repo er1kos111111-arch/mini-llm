@@ -1,0 +1,63 @@
+{
+  "_comment": "micro preset: CPU smoke-test only (~1M params, vocab 2000). For verifying pipeline locally in seconds.",
+  "preset": "micro",
+  "seed": 42,
+  "tokenizer": {
+    "vocab_size": 2000,
+    "min_frequency": 1,
+    "byte_level": true,
+    "output_dir": "tokenizer/out_micro",
+    "corpus_files": [
+      "data/pretrain_corpus.txt",
+      "data/conversations_text.txt"
+    ]
+  },
+  "model": {
+    "vocab_size": 2000,
+    "hidden_size": 128,
+    "num_layers": 4,
+    "num_heads": 4,
+    "num_kv_heads": 4,
+    "ffn_mult": 4.0,
+    "context_length": 256,
+    "dropout": 0.0,
+    "norm": "rmsnorm",
+    "pos_encoding": "rope",
+    "rope_theta": 10000.0,
+    "tie_word_embeddings": true
+  },
+  "data": {
+    "pretrain_corpus": "data/pretrain_corpus.txt",
+    "sft_file": "data/conversations.jsonl",
+    "val_split": 0.05,
+    "max_seq_len": 256,
+    "assistant_only_loss": true
+  },
+  "train": {
+    "stage": "sft",
+    "epochs": 6,
+    "batch_size": 4,
+    "gradient_accumulation_steps": 2,
+    "learning_rate": 0.0005,
+    "weight_decay": 0.01,
+    "warmup_ratio": 0.1,
+    "max_grad_norm": 1.0,
+    "scheduler": "cosine",
+    "mixed_precision": "no",
+    "num_workers": 0,
+    "log_steps": 5,
+    "eval_steps": 100,
+    "save_steps": 200,
+    "save_total_limit": 2,
+    "output_dir": "checkpoints/micro_full",
+    "resume_from": "checkpoints/micro_run/export"
+  },
+  "generation": {
+    "max_new_tokens": 64,
+    "temperature": 0.8,
+    "top_k": 50,
+    "top_p": 0.9,
+    "repetition_penalty": 1.1,
+    "do_sample": true
+  }
+}

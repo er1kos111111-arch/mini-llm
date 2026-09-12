@@ -1,0 +1,7 @@
+torch>=2.2
+tokenizers>=0.15
+transformers>=4.38
+datasets>=2.16
+safetensors>=0.4
+tqdm>=4.66
+numpy>=1.26

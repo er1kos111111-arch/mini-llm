@@ -1,0 +1,60 @@
+{
+  "_comment": "small preset (~25M params). Same as config.json. Needs Colab T4/A100.",
+  "preset": "small",
+  "seed": 42,
+  "tokenizer": {
+    "vocab_size": 16000,
+    "min_frequency": 2,
+    "byte_level": true,
+    "output_dir": "tokenizer/out_small",
+    "corpus_files": ["data/pretrain_corpus.txt", "data/conversations_text.txt"]
+  },
+  "model": {
+    "vocab_size": 16000,
+    "hidden_size": 384,
+    "num_layers": 8,
+    "num_heads": 8,
+    "num_kv_heads": 8,
+    "ffn_mult": 4.0,
+    "context_length": 512,
+    "dropout": 0.0,
+    "norm": "rmsnorm",
+    "pos_encoding": "rope",
+    "rope_theta": 10000.0,
+    "tie_word_embeddings": false
+  },
+  "data": {
+    "pretrain_corpus": "data/pretrain_corpus.txt",
+    "sft_file": "data/conversations.jsonl",
+    "val_split": 0.02,
+    "max_seq_len": 512,
+    "assistant_only_loss": true
+  },
+  "train": {
+    "stage": "sft",
+    "epochs": 5,
+    "batch_size": 8,
+    "gradient_accumulation_steps": 8,
+    "learning_rate": 3.0e-4,
+    "weight_decay": 0.01,
+    "warmup_ratio": 0.05,
+    "max_grad_norm": 1.0,
+    "scheduler": "cosine",
+    "mixed_precision": "bf16",
+    "num_workers": 0,
+    "log_steps": 20,
+    "eval_steps": 200,
+    "save_steps": 400,
+    "save_total_limit": 3,
+    "output_dir": "checkpoints/small_run",
+    "resume_from": null
+  },
+  "generation": {
+    "max_new_tokens": 128,
+    "temperature": 0.8,
+    "top_k": 50,
+    "top_p": 0.9,
+    "repetition_penalty": 1.1,
+    "do_sample": true
+  }
+}

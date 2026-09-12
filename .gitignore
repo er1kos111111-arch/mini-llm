@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+*.pt
+checkpoints/*/
+!checkpoints/micro_full/
+!checkpoints/micro_full/export/
+tokenizer/out_*/
+data/*.txt
