@@ -1,0 +1,64 @@
+{
+  "_comment": "base preset (~150M params). The Qwen-0.5B-direction program: wiki-scale pretrain + 12k SFT. Multi-session on T4 with resume + Drive.",
+  "preset": "base",
+  "seed": 42,
+  "tokenizer": {
+    "vocab_size": 24000,
+    "min_frequency": 3,
+    "byte_level": true,
+    "output_dir": "tokenizer/out_base",
+    "corpus_files": ["data/large/pretrain_large.txt"]
+  },
+  "model": {
+    "vocab_size": 24000,
+    "hidden_size": 768,
+    "num_layers": 12,
+    "num_heads": 12,
+    "num_kv_heads": 12,
+    "ffn_mult": 4.0,
+    "context_length": 1024,
+    "dropout": 0.1,
+    "norm": "rmsnorm",
+    "pos_encoding": "rope",
+    "rope_theta": 10000.0,
+    "tie_word_embeddings": false
+  },
+  "data": {
+    "pretrain_corpus": "data/large/pretrain_large.txt",
+    "sft_file": "data/conversations.jsonl",
+    "val_split": 0.01,
+    "max_seq_len": 1024,
+    "assistant_only_loss": true
+  },
+  "train": {
+    "stage": "sft",
+    "epochs": 3,
+    "pretrain_epochs": 3,
+    "sft_epochs": 3,
+    "batch_size": 4,
+    "gradient_accumulation_steps": 16,
+    "learning_rate": 2.0e-4,
+    "weight_decay": 0.01,
+    "warmup_ratio": 0.05,
+    "max_grad_norm": 1.0,
+    "scheduler": "cosine",
+    "mixed_precision": "bf16",
+    "num_workers": 0,
+    "log_steps": 10,
+    "eval_steps": 100,
+    "save_steps": 200,
+    "save_total_limit": 3,
+    "output_dir": "checkpoints/base_run",
+    "pretrain_output_dir": "checkpoints/base_pretrain",
+    "sft_output_dir": "checkpoints/base_sft",
+    "resume_from": null
+  },
+  "generation": {
+    "max_new_tokens": 160,
+    "temperature": 0.7,
+    "top_k": 50,
+    "top_p": 0.9,
+    "repetition_penalty": 1.1,
+    "do_sample": true
+  }
+}

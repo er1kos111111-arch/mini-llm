@@ -16,7 +16,97 @@ import random
 from pathlib import Path
 
 SEED = 1234
-N_TARGET = 1400  # total dialogs
+N_TARGET = 1400  # default; use --target 12000 for the large SFT set
+
+WORDS_EN_RU = [
+ ("cat", "кот"), ("dog", "собака"), ("house", "дом"), ("book", "книга"),
+ ("water", "вода"), ("sun", "солнце"), ("moon", "луна"), ("star", "звезда"),
+ ("tree", "дерево"), ("river", "река"), ("mountain", "гора"), ("sea", "море"),
+ ("bread", "хлеб"), ("milk", "молоко"), ("apple", "яблоко"), ("school", "школа"),
+ ("teacher", "учитель"), ("friend", "друг"), ("family", "семья"), ("city", "город"),
+ ("road", "дорога"), ("car", "машина"), ("train", "поезд"), ("bird", "птица"),
+ ("fish", "рыба"), ("flower", "цветок"), ("grass", "трава"), ("snow", "снег"),
+ ("rain", "дождь"), ("wind", "ветер"), ("fire", "огонь"), ("earth", "земля"),
+ ("computer", "компьютер"), ("phone", "телефон"), ("music", "музыка"), ("song", "песня"),
+ ("door", "дверь"), ("window", "окно"), ("table", "стол"), ("chair", "стул"),
+]
+
+CAPITALS = [
+ ("России", "Москва"), ("Франции", "Париж"), ("Германии", "Берлин"),
+ ("Италии", "Рим"), ("Испании", "Мадрид"), ("Японии", "Токио"),
+ ("Китая", "Пекин"), ("США", "Вашингтон"), ("Канады", "Оттава"),
+ ("Бразилии", "Бразилиа"), ("Индии", "Нью-Дели"), ("Египта", "Каир"),
+ ("What is the capital of France?", "The capital of France is Paris."),
+ ("What is the capital of Japan?", "The capital of Japan is Tokyo."),
+ ("What is the capital of Italy?", "The capital of Italy is Rome."),
+ ("What is the capital of Germany?", "The capital of Germany is Berlin."),
+]
+
+
+def gen_math(rng: random.Random, n: int) -> list[dict]:
+    out = []
+    for _ in range(n):
+        kind = rng.random()
+        if kind < 0.4:
+            a, b = rng.randint(2, 99), rng.randint(2, 99)
+            op, ru_op, fn = rng.choice([("+", "плюс", lambda x, y: x + y),
+                                        ("-", "минус", lambda x, y: x - y),
+                                        ("×", "умножить на", lambda x, y: x * y)])
+            if ru_op == "минус":
+                a, b = max(a, b), min(a, b)
+            if rng.random() < 0.5:
+                out.append({"messages": [
+                    {"role": "user", "content": f"Сколько будет {a} {ru_op} {b}?"},
+                    {"role": "assistant", "content": f"{a} {ru_op} {b} = {fn(a, b)}."}]})
+            else:
+                out.append({"messages": [
+                    {"role": "user", "content": f"What is {a} {op} {b}?"},
+                    {"role": "assistant", "content": f"{a} {op} {b} = {fn(a, b)}."}]})
+        elif kind < 0.7:
+            a, x = rng.randint(2, 20), rng.randint(2, 20)
+            c = a * x
+            out.append({"messages": [
+                {"role": "user", "content": f"Реши уравнение: {a}x = {c}"},
+                {"role": "assistant", "content": f"x = {c} / {a} = {x}. Проверка: {a}·{x} = {c}."}]})
+        else:
+            p, base = rng.randint(2, 90), rng.choice([50, 100, 200, 1000])
+            val = base * p / 100
+            val_s = str(int(val)) if val == int(val) else str(val)
+            out.append({"messages": [
+                {"role": "user", "content": f"Сколько будет {p}% от {base}?"},
+                {"role": "assistant", "content": f"{p}% от {base} = {val_s}."}]})
+    return out
+
+
+def gen_translations(rng: random.Random, n: int) -> list[dict]:
+    out = []
+    for _ in range(n):
+        en, ru = rng.choice(WORDS_EN_RU)
+        if rng.random() < 0.5:
+            out.append({"messages": [
+                {"role": "user", "content": f'Как переводится "{en}" на русский?'},
+                {"role": "assistant", "content": f'"{en}" по-русски — "{ru}".'}]})
+        else:
+            out.append({"messages": [
+                {"role": "user", "content": f'How do you say "{ru}" in English?'},
+                {"role": "assistant", "content": f'"{ru}" in English is "{en}".'}]})
+    return out
+
+
+def gen_capitals(rng: random.Random, n: int) -> list[dict]:
+    out = []
+    ru_caps = [(c, city) for c, city in CAPITALS if not c.startswith("What")]
+    en_caps = [(c, a) for c, a in CAPITALS if c.startswith("What")]
+    for _ in range(n):
+        if rng.random() < 0.6:
+            c, city = rng.choice(ru_caps)
+            out.append({"messages": [
+                {"role": "user", "content": f"Какая столица {c}?"},
+                {"role": "assistant", "content": f"Столица {c} — {city}."}]})
+        else:
+            q, a = rng.choice(en_caps)
+            out.append({"messages": [{"role": "user", "content": q}, {"role": "assistant", "content": a}]})
+    return out
 
 # ---------------------------------------------------------------- pools
 # Each entry: (topic, [(user_variant, [assistant_variants...])])
@@ -213,7 +303,7 @@ def _is_ru(text: str) -> bool:
     return any("а" <= c <= "я" or "А" <= c <= "Я" or c in "ёЁ" for c in text)
 
 
-def build() -> tuple[list[dict], list[str]]:
+def build(target: int = N_TARGET) -> tuple[list[dict], list[str]]:
     rng = random.Random(SEED)
     base: list[tuple[str, list[str]]] = []  # (user, answers)
     for topic, items in POOLS:
@@ -229,7 +319,7 @@ def build() -> tuple[list[dict], list[str]]:
             ]})
     # pass 2: paraphrase upsampling until N_TARGET (varied users, sampled answers)
     guard = 0
-    while len(dialogs) < N_TARGET and guard < N_TARGET * 10:
+    while len(dialogs) < target and guard < target * 10:
         guard += 1
         user, answers = rng.choice(base)
         u2 = _paraphrase_user(rng, user, _is_ru(user))
@@ -246,8 +336,14 @@ def build() -> tuple[list[dict], list[str]]:
         a, b = dialogs[i], dialogs[i + 1]
         multi.append({"messages": a["messages"] + b["messages"]})
     dialogs = dialogs + multi
+    # pass 3 (large sets only): unique compositional data — unmemorisable by design
+    if target > 3000:
+        n_each = (target - len(dialogs)) // 3
+        dialogs += gen_math(rng, n_each)
+        dialogs += gen_translations(rng, n_each)
+        dialogs += gen_capitals(rng, n_each)
     rng.shuffle(dialogs)
-    dialogs = dialogs[:N_TARGET]
+    dialogs = dialogs[:target]
 
     # pretrain corpus: sentences + answers text repeated
     pretrain_lines: list[str] = []
@@ -260,11 +356,15 @@ def build() -> tuple[list[dict], list[str]]:
 
 
 def main():
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--target", type=int, default=N_TARGET)
+    args = ap.parse_args()
     out_data = Path("data")
     out_data.mkdir(parents=True, exist_ok=True)
     (out_data / "raw").mkdir(exist_ok=True)
     (out_data / "processed").mkdir(exist_ok=True)
-    dialogs, pretrain = build()
+    dialogs, pretrain = build(target=args.target)
     with open(out_data / "conversations.jsonl", "w", encoding="utf-8") as f:
         for d in dialogs:
             f.write(json.dumps(d, ensure_ascii=False) + "\n")
