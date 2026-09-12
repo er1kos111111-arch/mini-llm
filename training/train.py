@@ -131,7 +131,7 @@ def train_stage(cfg: dict, stage: str, resume: str | None):
     amp_dtype = torch.bfloat16 if hcfg.get("mixed_precision") == "bf16" else torch.float16
     scaler = torch.amp.GradScaler("cuda") if (use_amp and amp_dtype == torch.float16) else None
 
-    out_dir = Path(hcfg["output_dir"])
+    out_dir = Path(hcfg.get(f"{stage}_output_dir", hcfg.get("output_dir")))
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "run_config.json").write_text(json.dumps(cfg, ensure_ascii=False, indent=2), encoding="utf-8")
     # copy tokenizer next to checkpoints for chat.py portability
