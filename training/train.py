@@ -149,7 +149,10 @@ def train_stage(cfg: dict, stage: str, resume: str | None):
             missing, unexpected = model.load_state_dict(st.load_file(rp / "model.safetensors", device=device), strict=False)
             print(f"resumed weights from export {resume} (missing={len(missing)}, unexpected={len(unexpected)})")
         else:
-            ck = torch.load(rp / "last.pt" if rp.is_dir() and (rp / "last.pt").exists() else rp, map_location=device)
+            cand = rp / "last.pt" if rp.is_dir() and (rp / "last.pt").exists() else rp
+            if not Path(cand).exists() and Path(str(rp) + ".pt").exists():
+                cand = Path(str(rp) + ".pt")  # allow '.../last' as well as '...' dir
+            ck = torch.load(cand, map_location=device)
             model.load_state_dict(ck["model"])
             try:
                 opt.load_state_dict(ck["optimizer"])
