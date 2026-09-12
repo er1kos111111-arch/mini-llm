@@ -251,7 +251,7 @@ def build() -> tuple[list[dict], list[str]]:
 
     # pretrain corpus: sentences + answers text repeated
     pretrain_lines: list[str] = []
-    pretrain_lines += PRETRAIN_SENTENCES * 14
+    pretrain_lines += PRETRAIN_SENTENCES * 60
     for d in dialogs:
         for m in d["messages"]:
             pretrain_lines.append(m["content"])

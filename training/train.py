@@ -122,7 +122,9 @@ def train_stage(cfg: dict, stage: str, resume: str | None):
 
     opt = torch.optim.AdamW(model.parameters(), lr=hcfg["learning_rate"],
                             weight_decay=hcfg.get("weight_decay", 0.01), betas=(0.9, 0.95))
-    total_steps = (len(train_loader) * hcfg["epochs"] + hcfg["gradient_accumulation_steps"] - 1) // hcfg["gradient_accumulation_steps"]
+    epochs = int(hcfg.get(f"{stage}_epochs", hcfg.get("epochs", 5)))
+    total_steps = (len(train_loader) * epochs + hcfg["gradient_accumulation_steps"] - 1) // hcfg["gradient_accumulation_steps"]
+    print(f"stage={stage} epochs={epochs} train_samples={n_tr} opt_steps={total_steps}")
     sched = get_scheduler(opt, total_steps, hcfg.get("warmup_ratio", 0.05), hcfg.get("scheduler", "cosine"))
 
     use_amp = hcfg.get("mixed_precision", "no") in ("fp16", "bf16") and device == "cuda"
@@ -160,7 +162,7 @@ def train_stage(cfg: dict, stage: str, resume: str | None):
 
     accum = hcfg.get("gradient_accumulation_steps", 1)
     model.train()
-    for epoch in range(hcfg["epochs"]):
+    for epoch in range(epochs):
         for bi, b in enumerate(train_loader):
             b = {k: v.to(device) for k, v in b.items()}
             with torch.amp.autocast("cuda", dtype=amp_dtype, enabled=use_amp):
