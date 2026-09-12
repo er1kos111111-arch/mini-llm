@@ -41,7 +41,15 @@ def clean_paragraphs(text: str) -> list[str]:
 
 def load_wiki(lang: str, n: int) -> list[str]:
     from datasets import load_dataset
-    ds = load_dataset("wikipedia", f"20220301.{lang}", split="train", trust_remote_code=False)
+    last_err = None
+    for kw in ({"trust_remote_code": False}, {"trust_remote_code": True}):
+        try:
+            ds = load_dataset("wikipedia", f"20220301.{lang}", split="train", **kw)
+            break
+        except Exception as e:
+            last_err = e
+    else:
+        raise RuntimeError(f"wikipedia {lang} unavailable: {last_err}")
     idx = list(range(min(n, len(ds))))
     rng = random.Random(SEED)
     rng.shuffle(idx)
